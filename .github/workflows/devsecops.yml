@@ -88,11 +88,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: secrets-result
-          uses: actions/upload-artifact@v4
-          with:
-            name: secrets-result
-            path: gitleaks.json
-            if-no-files-found: ignore
+          path: gitleaks.json
+          if-no-files-found: ignore
           
   container-iac:
     name: Container + IaC (Trivy + Checkov + Hadolint)

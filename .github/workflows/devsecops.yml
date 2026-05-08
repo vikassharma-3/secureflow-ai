@@ -176,6 +176,15 @@ jobs:
         with:
           merge-multiple: true
 
+      - name: Organize scan results into expected directories
+        run: |
+          mkdir -p sast-results sca-results secrets-results container-iac-results
+          mv semgrep.json sast-results/ 2>/dev/null || true
+          mv trivy-fs.json sca-results/ 2>/dev/null || true
+          mv gitleaks.json secrets-results/ 2>/dev/null || true
+          mv hadolint.json container-iac-results/ 2>/dev/null || true
+          mv checkov.json container-iac-results/ 2>/dev/null || true
+
       - name: Run AI triage
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -36,12 +36,12 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         continue-on-error: true
 
-        - name: Upload SAST Results
-          uses: actions/upload-artifact@v4
-          with:
-            name: sast-result
-            path: semgrep.json
-            if-no-files-found: ignore
+      - name: Upload SAST Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-result
+          path: semgrep.json
+          if-no-files-found: ignore
 
   sca:
     name: SCA Analysis(Trivy + OWASP Dependency-Check)

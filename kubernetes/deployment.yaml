@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secureflow-app
+  labels:
+    app: secureflow-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secureflow-app
+  template:
+    metadata:
+      labels:
+        app: secureflow-app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+
+      containers:
+        - name: secureflow-app
+          image: secureflow-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10

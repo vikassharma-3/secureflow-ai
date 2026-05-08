@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+     - ./prometheus-config:/etc/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: secureflow123
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  grafana_data:

@@ -1,0 +1,1 @@
+[{"code":"DL3042","column":1,"file":"app/Dockerfile","level":"warning","line":6,"message":"Avoid use of cache directory with pip. Use `pip install --no-cache-dir <package>`"}]

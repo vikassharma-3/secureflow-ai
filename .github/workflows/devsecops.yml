@@ -1,0 +1,230 @@
+name: SecureFlow AI - DevSecOps Workflow
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+env:
+  PYTHON_VERSION: "3.11"
+jobs:
+  sast:
+    name: SAST Analysis(Semgrep + SonarQube)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/owasp-top-ten-2021
+            p/python-security-audit
+            p/python-3.11
+            p/secrets
+          generateSARIF: "1"
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        continue-on-error: true
+      
+      - name: Save Semgrep JSON
+        run: semgrep --config p/owasp-top-ten-2021 --json --output=semgrep.json . || true
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+        - name: Upload SAST Results
+          uses: actions/upload-artifact@v4
+          with:
+            name: sast-result
+            path: semgrep.json
+            if-no-files-found: ignore
+
+  sca:
+    name: SCA Analysis(Trivy + OWASP Dependency-Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          format: json
+          output: trivy-fs.json
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload SCA Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-result
+          path: trivy-fs.json
+          if-no-files-found: ignore
+
+  secrets: 
+    name: Secrets Detection(Gitleaks + Trufflehog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+      - name: Save Gitleaks JSON
+        run: gitleaks detect --source . --report-format json --report-path gitleaks.json --exit-code 0 || true
+
+      - name: Upload Secrets Detection Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: secrets-result
+          uses: actions/upload-artifact@v4
+          with:
+            name: secrets-result
+            path: gitleaks.json
+            if-no-files-found: ignore
+          
+  container-iac:
+    name: Container + IaC (Trivy + Checkov + Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hadolint — Dockerfile lint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/Dockerfile
+          format: json
+          output-file: hadolint.json
+          no-fail: true
+      - name: Build Docker image
+        run: docker build -t secureflow-app:latest ./app
+
+      - name: Trivy — Image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: secureflow-app:latest
+          format: json
+          output: trivy-image.json
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Checkov — IaC scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure
+          output_format: json
+          output_file_path: checkov.json
+          soft_fail: true
+
+      - name: Upload container/IaC results
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-iac-results
+          path: |
+            hadolint.json
+            trivy-image.json
+            checkov.json
+          if-no-files-found: ignore
+
+  # ─── SBOM generation ─────────────────────────────────────────────────────
+  sbom:
+    name: SBOM (Syft)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          path: ./app
+          format: cyclonedx-json
+          output-file: sbom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+  # ─── AI Triage ───────────────────────────────────────────────────────────
+  ai-triage:
+    name: AI Triage (Claude API)
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secrets, container-iac]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Download all scan artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Run AI triage
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}   # set to 'claude' or 'gemini'
+        run: python scripts/ai_triage.py
+
+      - name: Upload triage output
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-output
+          path: |
+            triage_output.json
+            triage_report.md
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('triage_report.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });
+
+  # ─── Security Gate ───────────────────────────────────────────────────────
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: [ai-triage]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Download triage output
+        uses: actions/download-artifact@v4
+        with:
+          name: triage-output
+      - name: Enforce security gate
+        run: python scripts/security_gate.py
+
+  # ─── Deploy ──────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [security-gate]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to cluster
+        run: echo "kubectl apply -f kubernetes/ — configure your cluster credentials here"

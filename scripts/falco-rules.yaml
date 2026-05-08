@@ -1,0 +1,24 @@
+- rule: Shell spawned in container
+  desc: A shell was spawned inside a container
+  condition: >
+    spawned_process and container and
+    shell_procs and proc.tty != 0
+  output: >
+    Shell spawned in container
+    (user=%user.name container=%container.name
+     image=%container.image.repository
+     shell=%proc.name parent=%proc.pname)
+  priority: WARNING
+  tags: [container, shell, secureflow]
+
+- rule: Sensitive file read
+  desc: A process tried to read a sensitive file
+  condition: >
+    open_read and container and
+    (fd.name startswith /etc/passwd or
+     fd.name startswith /etc/shadow)
+  output: >
+    Sensitive file read (file=%fd.name
+    container=%container.name)
+  priority: ERROR
+  tags: [container, filesystem, secureflow]

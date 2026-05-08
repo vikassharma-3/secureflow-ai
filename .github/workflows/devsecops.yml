@@ -176,6 +176,9 @@ jobs:
         with:
           merge-multiple: true
 
+      - name: Debug downloaded files
+        run: find . -not -path './.git/*' | sort
+
       - name: Organize scan results into expected directories
         run: |
           mkdir -p sast-results sca-results secrets-results container-iac-results
@@ -183,6 +186,8 @@ jobs:
           mv trivy-fs.json sca-results/ 2>/dev/null || true
           mv gitleaks.json secrets-results/ 2>/dev/null || true
           mv hadolint.json container-iac-results/ 2>/dev/null || true
+          # checkov-action creates a directory, copy the actual JSON file inside it
+          find . -name "results_json.json" | head -1 | xargs -I{} cp {} container-iac-results/checkov.json 2>/dev/null || true
           mv checkov.json container-iac-results/ 2>/dev/null || true
 
       - name: Run AI triage

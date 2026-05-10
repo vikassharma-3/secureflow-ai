@@ -5,3 +5,7 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  - job_name: falcosidekick
+    static_configs:
+      - targets: ["$WSL_IP:2801"]

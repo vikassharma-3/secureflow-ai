@@ -105,7 +105,8 @@ pip3 install semgrep
 sudo apt install wget apt-transport-https gnupg -y
 wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
 echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
-sudo apt update && sudo apt install trivy -y
+sudo apt update && sudo apt install trivy -ycd ~/secureflow-ai
+
 
 # Gitleaks
 wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz

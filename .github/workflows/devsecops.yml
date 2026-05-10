@@ -22,7 +22,7 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
-            p/owasp-top-ten-2021
+            p/owasp-top-ten
             p/python-security-audit
             p/python-3.11
             p/secrets
@@ -32,7 +32,7 @@ jobs:
         continue-on-error: true
       
       - name: Save Semgrep JSON
-        run: semgrep --config p/owasp-top-ten-2021 --json --output=semgrep.json . || true
+        run: semgrep --config p/owasp-top-ten --json --output=semgrep.json . || true
 
       - name: SonarQube Scan
         uses: SonarSource/sonarcloud-github-action@master

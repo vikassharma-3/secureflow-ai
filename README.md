@@ -75,6 +75,41 @@ Code Push / PR
 
 ---
 
+## GitHub Actions Configuration
+
+**1. Add secrets** — repo → Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|--------|-------|
+| `GEMINI_API_KEY` | From [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| `ANTHROPIC_API_KEY` | From [console.anthropic.com](https://console.anthropic.com) (optional) |
+| `SONAR_TOKEN` | From your SonarQube project settings (optional) |
+| `SONAR_HOST_URL` | Your SonarQube URL (optional) |
+
+**2. Add variable** — Settings → Variables → Actions:
+
+| Variable | Value |
+|----------|-------|
+| `AI_PROVIDER` | `gemini` or `claude` |
+
+**3. Push to trigger the pipeline**
+```bash
+git add .
+git commit -m "feat: trigger secureflow pipeline"
+git push origin main
+```
+
+**4. Test PR comments**
+```bash
+git checkout -b feature/test-scan
+echo "# test" >> README.md
+git add . && git commit -m "test: trigger AI triage"
+git push origin feature/test-scan
+# Open a PR on GitHub — AI report posts as a comment
+```
+
+---
+
 ## Setup
 
 ### Windows (WSL2)
@@ -266,41 +301,6 @@ helm install falco falcosecurity/falco \
   --set falcosidekick.webui.enabled=true
 
 kubectl get pods -n falco -w
-```
-
----
-
-## GitHub Actions setup
-
-**1. Add secrets** — repo → Settings → Secrets and variables → Actions:
-
-| Secret | Value |
-|--------|-------|
-| `GEMINI_API_KEY` | From [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| `ANTHROPIC_API_KEY` | From [console.anthropic.com](https://console.anthropic.com) (optional) |
-| `SONAR_TOKEN` | From your SonarQube project settings (optional) |
-| `SONAR_HOST_URL` | Your SonarQube URL (optional) |
-
-**2. Add variable** — Settings → Variables → Actions:
-
-| Variable | Value |
-|----------|-------|
-| `AI_PROVIDER` | `gemini` or `claude` |
-
-**3. Push to trigger the pipeline**
-```bash
-git add .
-git commit -m "feat: trigger secureflow pipeline"
-git push origin main
-```
-
-**4. Test PR comments**
-```bash
-git checkout -b feature/test-scan
-echo "# test" >> README.md
-git add . && git commit -m "test: trigger AI triage"
-git push origin feature/test-scan
-# Open a PR on GitHub — AI report posts as a comment
 ```
 
 ---
